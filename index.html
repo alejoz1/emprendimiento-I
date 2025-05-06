@@ -199,6 +199,8 @@
             transition: all 0.3s ease;
             box-shadow: 0 5px 15px rgba(108, 99, 255, 0.3);
             font-weight: 600;
+            position: relative;
+            z-index: 10;
         }
         
         .slide-button:hover {
@@ -212,6 +214,72 @@
             color: var(--primary);
             font-size: 1.2rem;
             padding: 1rem 2rem;
+        }
+        
+        /* Modal para información adicional */
+        .info-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .info-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            padding: 2rem;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .info-modal.active .modal-content {
+            transform: translateY(0);
+        }
+        
+        .modal-title {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .modal-text {
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--dark);
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+        }
+        
+        .close-modal:hover {
+            opacity: 1;
         }
         
         /* Responsive design */
@@ -243,16 +311,14 @@
             .slide-graphic {
                 height: 250px;
             }
-        }
-        
-        /* Animación de cursor parpadeante */
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-        
-        .blinking-cursor {
-            animation: blink 1s step-end infinite;
+            
+            .modal-content {
+                padding: 1.5rem;
+            }
+            
+            .modal-title {
+                font-size: 1.3rem;
+            }
         }
     </style>
 </head>
@@ -268,6 +334,15 @@
         <div class="nav-dot" data-slide="3"></div>
         <div class="nav-dot" data-slide="4"></div>
         <div class="nav-dot" data-slide="5"></div>
+    </div>
+    
+    <!-- Modal para información adicional -->
+    <div class="info-modal" id="info-modal">
+        <div class="modal-content">
+            <button class="close-modal" id="close-modal">&times;</button>
+            <h3 class="modal-title" id="modal-title">Título del Modal</h3>
+            <p class="modal-text" id="modal-text">Contenido del modal aquí...</p>
+        </div>
     </div>
     
     <!-- Contenedor de diapositivas -->
@@ -289,7 +364,7 @@
             <div class="slide-graphic">
                 <canvas id="idea-chart"></canvas>
             </div>
-            <button class="slide-button">Ver Detalles</button>
+            <button class="slide-button" data-modal="idea">Ver Detalles</button>
         </div>
         
         <!-- Mercado Objetivo -->
@@ -299,7 +374,7 @@
             <div class="slide-graphic">
                 <canvas id="market-chart"></canvas>
             </div>
-            <button class="slide-button">Ver Estadísticas</button>
+            <button class="slide-button" data-modal="market">Ver Estadísticas</button>
         </div>
         
         <!-- Modelo Financiero -->
@@ -309,7 +384,7 @@
             <div class="slide-graphic">
                 <canvas id="finance-chart"></canvas>
             </div>
-            <button class="slide-button">Ver Proyecciones</button>
+            <button class="slide-button" data-modal="finance">Ver Proyecciones</button>
         </div>
         
         <!-- Ventaja Competitiva -->
@@ -319,7 +394,7 @@
             <div class="slide-graphic">
                 <canvas id="competitive-chart"></canvas>
             </div>
-            <button class="slide-button">Comparar</button>
+            <button class="slide-button" data-modal="competitive">Comparar</button>
         </div>
         
         <!-- Bibliografía -->
@@ -333,7 +408,7 @@
             <div class="slide-graphic">
                 <i class="fas fa-book" style="font-size: 5rem; color: var(--primary);"></i>
             </div>
-            <button class="slide-button">Descargar PDF</button>
+            <button class="slide-button" data-modal="bibliography">Descargar PDF</button>
         </div>
     </div>
 
@@ -349,6 +424,10 @@
             const progressBar = document.getElementById('progress-bar');
             const container = document.getElementById('slide-container');
             const startButton = document.getElementById('start-button');
+            const infoModal = document.getElementById('info-modal');
+            const closeModal = document.getElementById('close-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalText = document.getElementById('modal-text');
             let currentSlide = 0;
             let isScrolling = false;
             let scrollTimeout;
@@ -372,68 +451,137 @@
                 return `rgba(${r}, ${g}, ${b}, ${alpha})`;
             }
 
-            // Opciones comunes para los gráficos
-            function getChartOptions(title) {
-                return {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    family: "'Poppins', sans-serif",
-                                    size: 12
-                                },
-                                color: colors.dark,
-                                padding: 20,
-                                usePointStyle: true,
-                                pointStyle: 'circle'
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: title,
-                            font: {
-                                family: "'Poppins', sans-serif",
-                                size: 16,
-                                weight: 'bold'
-                            },
-                            color: colors.dark,
-                            padding: {
-                                top: 10,
-                                bottom: 20
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: hexToRgba(colors.dark, 0.8),
-                            titleFont: {
-                                family: "'Poppins', sans-serif",
-                                size: 14
-                            },
-                            bodyFont: {
-                                family: "'Poppins', sans-serif",
-                                size: 12
-                            },
-                            footerFont: {
-                                family: "'Poppins', sans-serif",
-                                size: 10
-                            },
-                            padding: 12,
-                            cornerRadius: 8,
-                            displayColors: true,
-                            boxPadding: 6
-                        }
-                    },
-                    animation: {
-                        duration: 1500,
-                        easing: 'easeOutQuart'
-                    }
-                };
-            }
+            // Contenido para los modales
+            const modalContents = {
+                idea: {
+                    title: "Detalles de la Idea de Negocio",
+                    content: `<p>La plataforma utiliza algoritmos de IA para analizar el progreso del usuario y adaptar el contenido en tiempo real. Características principales:</p>
+                    <ul>
+                        <li><strong>Adaptabilidad:</strong> Los cursos se ajustan al ritmo de aprendizaje de cada usuario</li>
+                        <li><strong>Mentorías personalizadas:</strong> Sesiones 1:1 con expertos en tecnología</li>
+                        <li><strong>Proyectos prácticos:</strong> Aplicación de conocimientos en casos reales</li>
+                        <li><strong>Gamificación:</strong> Sistema de recompensas para mantener la motivación</li>
+                    </ul>`
+                },
+                market: {
+                    title: "Estadísticas del Mercado Objetivo",
+                    content: `<p>Análisis detallado del mercado objetivo en Latinoamérica:</p>
+                    <ul>
+                        <li><strong>Edad:</strong> 20-35 años (85% del mercado)</li>
+                        <li><strong>Ubicación:</strong> México (35%), Colombia (25%), Argentina (20%), otros (20%)</li>
+                        <li><strong>Intereses:</strong> Desarrollo web (45%), Data Science (30%), IA (25%)</li>
+                        <li><strong>Disposición a pagar:</strong> $15-$30/mes (70% de los encuestados)</li>
+                    </ul>
+                    <p>Fuente: Estudio de mercado realizado en 2024 con 1,200 participantes.</p>`
+                },
+                finance: {
+                    title: "Proyecciones Financieras Detalladas",
+                    content: `<p>Estimaciones financieras para los primeros 3 años:</p>
+                    <table>
+                        <tr>
+                            <th>Año</th>
+                            <th>Usuarios</th>
+                            <th>Ingresos</th>
+                            <th>Costos</th>
+                            <th>Beneficio</th>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td>1,200</td>
+                            <td>$240,000</td>
+                            <td>$180,000</td>
+                            <td>$60,000</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>3,600</td>
+                            <td>$720,000</td>
+                            <td>$450,000</td>
+                            <td>$270,000</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>6,000</td>
+                            <td>$1,200,000</td>
+                            <td>$700,000</td>
+                            <td>$500,000</td>
+                        </tr>
+                    </table>
+                    <p>Nota: Proyecciones basadas en crecimiento orgánico del 200% anual.</p>`
+                },
+                competitive: {
+                    title: "Análisis Comparativo con la Competencia",
+                    content: `<p>Principales ventajas competitivas:</p>
+                    <ul>
+                        <li><strong>Personalización:</strong> 3x más efectiva que competidores principales</li>
+                        <li><strong>Expertos:</strong> 95% de nuestros mentores tienen más de 5 años de experiencia</li>
+                        <li><strong>Proyectos:</strong> Casos reales de empresas asociadas</li>
+                        <li><strong>Precio:</strong> 20% más económico que alternativas similares</li>
+                    </ul>
+                    <p>Nuestra plataforma supera en 8 de 10 métricas clave a los principales competidores en el mercado latinoamericano.</p>`
+                },
+                bibliography: {
+                    title: "Bibliografía Completa",
+                    content: `<p>Referencias académicas y técnicas utilizadas:</p>
+                    <ol>
+                        <li>OECD (2023). <em>Education at a Glance 2023</em>. OECD Publishing. DOI: 10.1787/19991487</li>
+                        <li>BID (2024). <em>Informe sobre EdTech en Latinoamérica</em>. Banco Interamericano de Desarrollo.</li>
+                        <li>AWS (2024). <em>Costos de hosting para plataformas educativas</em>. Amazon Web Services Whitepaper.</li>
+                        <li>Gartner (2023). <em>Hype Cycle for Education Technology</em>.</li>
+                        <li>McKinsey (2023). <em>The Future of Work in Latin America</em>.</li>
+                    </ol>
+                    <p><a href="#" style="color: var(--primary);">Descargar PDF con referencias completas</a></p>`
+                }
+            };
 
             // ======================
-            // 2. INICIALIZACIÓN DE GRÁFICOS
+            // 2. FUNCIONALIDAD DE MODALES
+            // ======================
+            
+            // Mostrar modal con información
+            function showModal(modalId) {
+                const content = modalContents[modalId];
+                if (content) {
+                    modalTitle.textContent = content.title;
+                    modalText.innerHTML = content.content;
+                    infoModal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+            
+            // Ocultar modal
+            function hideModal() {
+                infoModal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+            
+            // Event listeners para botones de modal
+            document.querySelectorAll('[data-modal]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const modalId = button.getAttribute('data-modal');
+                    showModal(modalId);
+                });
+            });
+            
+            // Cerrar modal al hacer clic en la X
+            closeModal.addEventListener('click', hideModal);
+            
+            // Cerrar modal al hacer clic fuera del contenido
+            infoModal.addEventListener('click', (e) => {
+                if (e.target === infoModal) {
+                    hideModal();
+                }
+            });
+            
+            // Cerrar modal con tecla ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && infoModal.classList.contains('active')) {
+                    hideModal();
+                }
+            });
+
+            // ======================
+            // 3. INICIALIZACIÓN DE GRÁFICOS
             // ======================
             function initCharts() {
                 // Gráfico de Idea de Negocio (Dona)
@@ -580,8 +728,68 @@
                 });
             }
 
+            // Opciones comunes para gráficos
+            function getChartOptions(title) {
+                return {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: "'Poppins', sans-serif",
+                                    size: 12
+                                },
+                                color: colors.dark,
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: title,
+                            font: {
+                                family: "'Poppins', sans-serif",
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            color: colors.dark,
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: hexToRgba(colors.dark, 0.8),
+                            titleFont: {
+                                family: "'Poppins', sans-serif",
+                                size: 14
+                            },
+                            bodyFont: {
+                                family: "'Poppins', sans-serif",
+                                size: 12
+                            },
+                            footerFont: {
+                                family: "'Poppins', sans-serif",
+                                size: 10
+                            },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: true,
+                            boxPadding: 6
+                        }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart'
+                    }
+                };
+            }
+
             // ======================
-            // 3. FUNCIONES DE NAVEGACIÓN
+            // 4. FUNCIONES DE NAVEGACIÓN
             // ======================
             
             // Actualizar la barra de progreso y los puntos de navegación
